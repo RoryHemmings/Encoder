@@ -9,7 +9,7 @@
 		-o <filepath>: writes program output to file indicated by path
 		-s: puts spaces in output (if converting to binary)
 		
-		Combine any of these to as and argument:
+		Combine any of these two as an argument:
 		i: image (can work for any file if you desire to convert raw binary data)
 		t: ascii
 		b: binary
@@ -20,6 +20,8 @@
 		ex. encode tb <ascii text> -f "input.txt": reads ascii text from "input.txt" and prints it out on the screen
 		ex. encode tb <ascii text> -f "input.txt" -o "output.txt": reads ascii from "input.txt" and writes output to "output.txt"
 		ex. encode ib64 <image path> -o "output.txt": reads image data from image path provided and outputs base64 into "output.txt" (Note, don't use -f for image file input)
+		ex. encode b64i <b64 text> -o <output path>: writes base64 input into file specified by -o path (output.png by default)
+		ex. encode b64i -f <b64input path> -o <output path>: writes base64 input into file specified by -o path with input from -f path
 
 */
 
@@ -31,6 +33,8 @@
 #include <vector>
 
 using namespace std;
+
+const char* HELP = "Encoder v1.2\nC++\nAuthor: Rory Hemmings\nArguments :\n\t-h, --help : displays help menu\n\t-f <filepath> : feeds program whatever is in the file indicated by the path\n\t-o <filepath> : writes program output to file indicated by path\n\t-s : puts spaces in output(if converting to binary)\nCombine any of these two as an argument :\n\ti: image(can work for any file if you desire to convert raw binary data)\n\tt : ascii\n\tb : binary\n\tb64 : base64(newline not accepted)\n\tex. <option1><option2> : converts from option1 as input to option 2 as output\n\tex.encode b64t <base64text> : converts base64 input to ascii output\n\tex.encode tb <ascii text> -f \"input.txt\" : reads ascii text from \"input.txt\" and prints it out on the screen\n\tex.encode tb <ascii text> -f \"input.txt\" - o \"output.txt\" : reads ascii from \"input.txt\" and writes output to \"output.txt\"\n\tex.encode ib64 <image path> -o \"output.txt\" : reads image data from image path provided and outputs base64 into \"output.txt\" (Note, don't use -f for image file input)\n\tex. encode b64i <b64 text> -o <output path>: writes base64 input into file specified by -o path (output.png by default)\n\tex. encode b64i -f <b64input path> -o <output path>: writes base64 input into file specified by -o path with input from -f path";
 
 const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -157,14 +161,14 @@ string base64_encode_image(const string& path) {
 }
 
 // You thought the last function took a long time to write but then you saw this one which took about 50 hours to write
-int base64_decode_image(const string& input) {
+int base64_decode_image(const string& input, const string& path) {
 	ofstream outfile;
-	outfile.open("test.png", ofstream::binary);	// This line specifically
+	outfile.open(path, ofstream::binary);	// This line specifically
 
 	string temp = base64_decode(input);
 	
 	if (outfile.is_open()) outfile.write(temp.c_str(), temp.size());
-	else return 1;
+	else { cerr << "File can't be opened" << endl; return 1; }
 
 	outfile.close();
 	return 0;
@@ -243,22 +247,34 @@ int main(int argc, char** argv) {
 	string file_input = "";
 	string file_output = "";
 	bool spaces = false;
+
+	string output = "";
 	if (argc > 0) {
 		for (size_t i = 1; i < argc; ++i) {
 			if (string(argv[i]) == "tb64" || string(argv[i]) == "b64t" || string(argv[i]) == "ib64" || string(argv[i]) == "b64i" || string(argv[i]) == "tb" || string(argv[i]) == "bt") { operation = argv[i]; input = argv[i + 1]; }
 			else if (string(argv[i]) == "-s") spaces = true;
 			else if (string(argv[i]) == "-f") file_input = getInputFromTextFile(argv[i + 1]);
 			else if (string(argv[i]) == "-o") file_output = argv[i + 1];
+			else if (string(argv[i]) == "-h" || string(argv[i]) == "--help") { printf("%s\n", HELP); return 0; }
 		}
 	}
 	if (file_input.size() != 0) input = file_input;
 
-	if (operation == "tb64") cout << base64_encode((const unsigned char*)input.c_str(), input.size()) << endl;
-	else if (operation == "b64t") cout << base64_decode(input) << endl;
-	else if (operation == "ib64") cout << base64_encode_image(input) << endl;
-	else if (operation == "b64i") base64_decode_image(input);
-	else if (operation == "tb") cout << binary_encode(input, spaces) << endl;
-	else if (operation == "bt") cout << binary_decode(input) << endl;
+	if (operation == "tb64") output = base64_encode((const unsigned char*)input.c_str(), input.size());
+	else if (operation == "b64t") output = base64_decode(input);
+	else if (operation == "ib64") output = base64_encode_image(input);
+	else if (operation == "b64i") { file_output.size() != 0 ? base64_decode_image(input, file_output) : base64_decode_image(input, "output.png"); return 0; }
+	else if (operation == "tb") output = binary_encode(input, spaces);
+	else if (operation == "bt") output = binary_decode(input);
+
+	if (file_output.size() == 0)
+		printf("%s\n", output.c_str());
+	else {
+		ofstream out;
+		out.open(file_output);
+		out << output << endl;
+		out.close();
+	}
 
 	return 0;
 }
